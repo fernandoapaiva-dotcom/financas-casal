@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id         String    @id @default(uuid())
+  nome       String
+  email      String    @unique
+  senhaHash  String
+  telefone   String?
+  criadoEm  DateTime  @default(now())
+  atualizadoEm DateTime @updatedAt
+  deletadoEm  DateTime?
+  membros    MembroCasal[]
+  contas     Conta[]
+}
+
+model Casal {
+  id               String    @id @default(uuid())
+  nome             String
+  orcamentoMensal  Float?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+  deletadoEm       DateTime?
+  membros          MembroCasal[]
+  contas           Conta[]
+  transacoes       Transacao[]
+  contasFixas      ContaFixa[]
+  orcamentos       OrcamentoCategoria[]
+}
+
+model MembroCasal {
+  id        String   @id @default(uuid())
+  casalId   String
+  usuarioId String
+  papel     String   @default("MEMBRO")
+  criadoEm DateTime @default(now())
+  casal     Casal    @relation(fields: [casalId], references: [id])
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  @@unique([casalId, usuarioId])
+}
+
+model Conta {
+  id             String    @id @default(uuid())
+  casalId        String
+  usuarioId      String
+  pluggyItemId   String?
+  pluggyContaId  String?
+  nome           String
+  banco          String
+  tipo           String
+  saldoAtual     Float     @default(0)
+  ultimoSync     DateTime?
+  ativa          Boolean   @default(true)
+  criadoEm      DateTime  @default(now())
+  atualizadoEm  DateTime  @updatedAt
+  deletadoEm     DateTime?
+  casal          Casal     @relation(fields: [casalId], references: [id])
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id])
+  transacoes     Transacao[]
+}
+
+model Transacao {
+  id                  String    @id @default(uuid())
+  contaId             String?
+  casalId             String
+  pluggyTransacaoId   String?   @unique
+  descricao           String
+  valor               Float
+  tipo                String
+  categoria           String?
+  subcategoria        String?
+  estabelecimento     String?
+  data                DateTime
+  parcelada           Boolean   @default(false)
+  parcelaAtual        Int?
+  parcelasTotal       Int?
+  lancadaManualmente  Boolean   @default(false)
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @updatedAt
+  deletadoEm          DateTime?
+  casal               Casal     @relation(fields: [casalId], references: [id])
+  conta               Conta?    @relation(fields: [contaId], references: [id])
+}
+
+model ContaFixa {
+  id             String    @id @default(uuid())
+  casalId        String
+  nome           String
+  valor          Float
+  diaVencimento  Int
+  categoria      String
+  ativa          Boolean   @default(true)
+  criadoEm      DateTime  @default(now())
+  atualizadoEm  DateTime  @updatedAt
+  deletadoEm     DateTime?
+  casal          Casal     @relation(fields: [casalId], references: [id])
+}
+
+model OrcamentoCategoria {
+  id          String   @id @default(uuid())
+  casalId     String
+  mes         Int
+  ano         Int
+  categoria   String
+  limiteValor Float
+  criadoEm   DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+  casal       Casal    @relation(fields: [casalId], references: [id])
+  @@unique([casalId, mes, ano, categoria])
+}
