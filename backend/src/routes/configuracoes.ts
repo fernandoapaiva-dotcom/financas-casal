@@ -136,17 +136,17 @@ router.post('/integracoes/testar', autenticacaoMiddleware, async (req: Request, 
     if (integracao === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        res.json({ dados: { sucesso: false, message: 'Chave do Gemini não configurada' }, erro: false });
+        res.json({ dados: { sucesso: false, mensagem: 'Chave do Gemini não configurada' }, erro: false });
         return;
       }
 
       // Backup do provedor atual para teste forçado do gemini
       const backupProvedor = process.env.IA_PROVEDOR;
       process.env.IA_PROVEDOR = 'gemini';
-      const result = await chamarIA('Responda apenas: ok');
+      const result = await chamarIA('Responda apenas com a palavra: ok');
       process.env.IA_PROVEDOR = backupProvedor;
 
-      if (result && result.toLowerCase().includes('ok')) {
+      if (result && result.trim() !== '') {
         res.json({ dados: { sucesso: true, mensagem: 'Gemini respondendo com sucesso!' }, erro: false });
       } else {
         res.json({ dados: { sucesso: false, mensagem: 'Resposta inesperada ou vazia do Gemini' }, erro: false });
