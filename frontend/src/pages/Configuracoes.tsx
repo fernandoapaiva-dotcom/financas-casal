@@ -80,6 +80,14 @@ export default function Configuracoes() {
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
   const [statusMotorIA, setStatusMotorIA] = useState<{ carregando: boolean; sucesso?: boolean; msg?: string }>({ carregando: false })
 
+  // Estados para gerenciamento do WhatsApp
+  const [qrcode, setQrcode] = useState<string | null>(null)
+  const [carregandoQr, setCarregandoQr] = useState(false)
+  const [carregandoConectar, setCarregandoConectar] = useState(false)
+  const [carregandoDesconectar, setCarregandoDesconectar] = useState(false)
+  const [pollingAtivo, setPollingAtivo] = useState(false)
+  const [msgWhatsApp, setMsgWhatsApp] = useState('')
+
   // Buscar dados atualizados do usuário logado (inclui telefone)
   const { data: usuarioAtual, isLoading: carregandoUsuario } = useQuery<{ id: string; nome: string; email: string; telefone: string | null }>({
     queryKey: ['auth-me'],
@@ -97,6 +105,30 @@ export default function Configuracoes() {
       return res.data.dados
     }
   })
+
+  // Buscar status do WhatsApp com polling quando QR estiver ativo
+  const { data: statusWhatsApp, refetch: refetchStatusWhatsApp } = useQuery<{
+    conectado: boolean
+    estado: string
+    numero: string | null
+  }>({
+    queryKey: ['whatsapp-status'],
+    queryFn: async () => {
+      const res = await api.get('/whatsapp/status')
+      return res.data.dados
+    },
+    refetchInterval: pollingAtivo ? 3000 : false,
+  })
+
+  // Quando conectar via polling, limpa o QR e para o polling
+  useEffect(() => {
+    if (pollingAtivo && statusWhatsApp?.conectado) {
+      setPollingAtivo(false)
+      setQrcode(null)
+      setMsgWhatsApp('\u2705 WhatsApp conectado com sucesso!')
+      setTimeout(() => setMsgWhatsApp(''), 4000)
+    }
+  }, [statusWhatsApp, pollingAtivo])
 
   // Buscar alertas ativos
   const { data: alertas, isLoading: carregandoAlertas } = useQuery<Alerta[]>({
@@ -634,127 +666,209 @@ export default function Configuracoes() {
 
         <hr style={{ border: 0, borderTop: '1px solid var(--cor-borda)', margin: '24px 0' }} />
 
-        {/* Seção: Evolution API */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>💬 Evolution API (WhatsApp Bot)</h4>
+        </div>
+      </Cartao>
+
+      {/* Card WhatsApp Gerenciamento */}
+      <Cartao>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '1.05rem' }}>📱 Gerenciamento do WhatsApp</h3>
+          {statusWhatsApp && (
             <span style={{
               fontSize: '0.75rem',
-              padding: '4px 8px',
+              padding: '4px 10px',
               borderRadius: '12px',
-              background: statusIntegracoes?.evolutionApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-              color: statusIntegracoes?.evolutionApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              background: statusWhatsApp.estado === 'não configurado'
+                ? 'rgba(239, 68, 68, 0.1)'
+                : statusWhatsApp.conectado
+                  ? 'rgba(16, 185, 129, 0.1)'
+                  : 'rgba(245, 158, 11, 0.1)',
+              color: statusWhatsApp.estado === 'não configurado'
+                ? 'var(--cor-perigo)'
+                : statusWhatsApp.conectado
+                  ? 'var(--cor-sucesso)'
+                  : 'var(--cor-alerta)',
             }}>
-              {statusIntegracoes?.evolutionApi.configurado ? '✅ Configurado' : '⚠️ Não configurado'}
+              {statusWhatsApp.estado === 'não configurado'
+                ? '⚠️ Evolution API não configurada'
+                : statusWhatsApp.conectado
+                  ? `✅ Conectado${statusWhatsApp.numero ? ' — ' + statusWhatsApp.numero : ''}`
+                  : `📵 ${statusWhatsApp.estado}`}
             </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-            <div style={{ position: 'relative' }}>
-              <Campo
-                label="EVOLUTION_API_URL"
-                type={showEvolutionUrl ? 'text' : 'password'}
-                value={evolutionUrlInput}
-                onChange={setEvolutionUrlInput}
-                placeholder="Deixe vazio para manter a chave atual"
-              />
-              <button
-                type="button"
-                onClick={() => setShowEvolutionUrl(!showEvolutionUrl)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '32px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--cor-texto-fraco)',
-                  cursor: 'pointer'
-                }}
-              >
-                {showEvolutionUrl ? '🙈' : '👁️'}
-              </button>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <Campo
-                label="EVOLUTION_INSTANCE"
-                type={showEvolutionInst ? 'text' : 'password'}
-                value={evolutionInstInput}
-                onChange={setEvolutionInstInput}
-                placeholder="Deixe vazio para manter a chave atual"
-              />
-              <button
-                type="button"
-                onClick={() => setShowEvolutionInst(!showEvolutionInst)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '32px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--cor-texto-fraco)',
-                  cursor: 'pointer'
-                }}
-              >
-                {showEvolutionInst ? '🙈' : '👁️'}
-              </button>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <Campo
-                label="EVOLUTION_API_KEY"
-                type={showEvolutionKey ? 'text' : 'password'}
-                value={evolutionKeyInput}
-                onChange={setEvolutionKeyInput}
-                placeholder="Deixe vazio para manter a chave atual"
-              />
-              <button
-                type="button"
-                onClick={() => setShowEvolutionKey(!showEvolutionKey)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '32px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--cor-texto-fraco)',
-                  cursor: 'pointer'
-                }}
-              >
-                {showEvolutionKey ? '🙈' : '👁️'}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <Botao
-                variante="primario"
-                style={{ width: 'auto', padding: '10px 16px' }}
-                onClick={async () => {
-                  if (evolutionUrlInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_URL', valor: evolutionUrlInput })
-                  if (evolutionInstInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_INSTANCE', valor: evolutionInstInput })
-                  if (evolutionKeyInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_KEY', valor: evolutionKeyInput })
-                }}
-                carregando={atualizarIntegracaoMutation.isPending}
-              >
-                Salvar
-              </Botao>
-              <Botao
-                variante="secundario"
-                style={{ width: 'auto', padding: '10px 16px' }}
-                onClick={() => testarConexao('evolution')}
-                disabled={statusTestes['evolution']?.carregando}
-              >
-                {statusTestes['evolution']?.carregando ? 'Testando...' : 'Testar Conexão'}
-              </Botao>
-            </div>
-          </div>
-          {statusTestes['evolution']?.msg && (
-            <div style={{
-              marginTop: '10px',
-              fontSize: '0.8rem',
-              color: statusTestes['evolution']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
-              fontWeight: 'bold'
-            }}>
-              {statusTestes['evolution']?.msg}
-            </div>
           )}
+        </div>
+
+        {/* Estado 1: Não configurado */}
+        {statusWhatsApp?.estado === 'não configurado' && (
+          <div style={{ fontSize: '0.85rem', color: 'var(--cor-texto-fraco)', textAlign: 'center', padding: '16px 0' }}>
+            Configure as credenciais da Evolution API na seção acima (⚙️ Configurações do Sistema) para habilitar o gerenciamento do WhatsApp.
+          </div>
+        )}
+
+        {/* Estado 2: Configurado mas desconectado — mostra botão Conectar e QR Code */}
+        {statusWhatsApp && statusWhatsApp.estado !== 'não configurado' && !statusWhatsApp.conectado && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            {!qrcode ? (
+              <>
+                <p style={{ fontSize: '0.85rem', color: 'var(--cor-texto-fraco)', textAlign: 'center' }}>
+                  Clique em <strong>Conectar WhatsApp</strong> para gerar o QR Code e vincular seu aparelho.
+                </p>
+                <Botao
+                  variante="primario"
+                  style={{ width: 'auto', padding: '12px 28px' }}
+                  carregando={carregandoConectar}
+                  onClick={async () => {
+                    setCarregandoConectar(true)
+                    setMsgWhatsApp('')
+                    try {
+                      await api.post('/whatsapp/criar-instancia')
+                      setCarregandoQr(true)
+                      const res = await api.get('/whatsapp/qrcode')
+                      setQrcode(res.data.dados.qrcode)
+                      setPollingAtivo(true)
+                    } catch (err: any) {
+                      setMsgWhatsApp(`\u274c ${err.response?.data?.mensagem || 'Erro ao gerar QR Code'}`)
+                    } finally {
+                      setCarregandoConectar(false)
+                      setCarregandoQr(false)
+                    }
+                  }}
+                >
+                  {carregandoConectar ? 'Gerando QR Code...' : '🔗 Conectar WhatsApp'}
+                </Botao>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  background: 'white',
+                  borderRadius: 'var(--raio)',
+                  padding: '16px',
+                  display: 'inline-block',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                }}>
+                  <img
+                    src={`data:image/png;base64,${qrcode}`}
+                    alt="QR Code WhatsApp"
+                    style={{ width: '220px', height: '220px', display: 'block' }}
+                  />
+                </div>
+                <div style={{ textAlign: 'center', maxWidth: '300px' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--cor-texto-fraco)', marginBottom: '4px' }}>
+                    <strong style={{ color: 'var(--cor-texto)' }}>Abra o WhatsApp no celular</strong>
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
+                    Menu (⋮) → Dispositivos conectados → Conectar dispositivo → Aponte a câmera para o QR Code
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
+                    <Botao
+                      variante="secundario"
+                      style={{ width: 'auto', padding: '8px 16px', fontSize: '0.8rem' }}
+                      carregando={carregandoQr}
+                      onClick={async () => {
+                        setCarregandoQr(true)
+                        try {
+                          const res = await api.get('/whatsapp/qrcode')
+                          setQrcode(res.data.dados.qrcode)
+                        } catch (err: any) {
+                          setMsgWhatsApp(`\u274c ${err.response?.data?.mensagem || 'Erro ao atualizar QR'}`)
+                        } finally {
+                          setCarregandoQr(false)
+                        }
+                      }}
+                    >
+                      🔄 Atualizar QR
+                    </Botao>
+                    <Botao
+                      variante="perigo"
+                      style={{ width: 'auto', padding: '8px 16px', fontSize: '0.8rem' }}
+                      onClick={() => { setQrcode(null); setPollingAtivo(false) }}
+                    >
+                      Cancelar
+                    </Botao>
+                  </div>
+                </div>
+                {pollingAtivo && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--cor-texto-fraco)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ animation: 'pulse 1.5s infinite' }}>⏳</span> Aguardando leitura do QR Code...
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Estado 3: Conectado */}
+        {statusWhatsApp?.conectado && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: 'var(--raio)',
+              padding: '20px',
+              textAlign: 'center',
+              width: '100%',
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✅</div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.95rem', marginBottom: '4px' }}>WhatsApp conectado!</div>
+              {statusWhatsApp.numero && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
+                  Número: <strong>+{statusWhatsApp.numero}</strong>
+                </div>
+              )}
+            </div>
+            <Botao
+              variante="perigo"
+              style={{ width: 'auto', padding: '10px 24px' }}
+              carregando={carregandoDesconectar}
+              onClick={async () => {
+                if (!window.confirm('Tem certeza que deseja desconectar o WhatsApp?')) return
+                setCarregandoDesconectar(true)
+                try {
+                  await api.delete('/whatsapp/desconectar')
+                  refetchStatusWhatsApp()
+                  setMsgWhatsApp('📵 WhatsApp desconectado.')
+                  setTimeout(() => setMsgWhatsApp(''), 3000)
+                } catch (err: any) {
+                  setMsgWhatsApp(`\u274c ${err.response?.data?.mensagem || 'Erro ao desconectar'}`)
+                } finally {
+                  setCarregandoDesconectar(false)
+                }
+              }}
+            >
+              📵 Desconectar WhatsApp
+            </Botao>
+          </div>
+        )}
+
+        {/* Mensagem de feedback */}
+        {msgWhatsApp && (
+          <div style={{
+            marginTop: '12px',
+            fontSize: '0.85rem',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            color: msgWhatsApp.startsWith('\u274c') ? 'var(--cor-perigo)' : 'var(--cor-sucesso)',
+          }}>
+            {msgWhatsApp}
+          </div>
+        )}
+
+        {/* Botão de atualizar status */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+          <button
+            onClick={() => refetchStatusWhatsApp()}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--cor-texto-fraco)',
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            🔄 Atualizar status
+          </button>
         </div>
       </Cartao>
 
