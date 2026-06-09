@@ -666,6 +666,104 @@ export default function Configuracoes() {
 
         <hr style={{ border: 0, borderTop: '1px solid var(--cor-borda)', margin: '24px 0' }} />
 
+        {/* Seção: Evolution API */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>💬 Evolution API (WhatsApp Bot)</h4>
+            <span style={{
+              fontSize: '0.75rem',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              background: statusIntegracoes?.evolutionApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+              color: statusIntegracoes?.evolutionApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+              fontWeight: 'bold'
+            }}>
+              {statusIntegracoes?.evolutionApi.configurado ? '✅ Configurado' : '⚠️ Não configurado'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="EVOLUTION_API_URL"
+                type={showEvolutionUrl ? 'text' : 'password'}
+                value={evolutionUrlInput}
+                onChange={setEvolutionUrlInput}
+                placeholder="Deixe vazio para manter a chave atual"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEvolutionUrl(!showEvolutionUrl)}
+                style={{ position: 'absolute', right: '10px', top: '32px', background: 'none', border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}
+              >
+                {showEvolutionUrl ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="EVOLUTION_INSTANCE"
+                type={showEvolutionInst ? 'text' : 'password'}
+                value={evolutionInstInput}
+                onChange={setEvolutionInstInput}
+                placeholder="Deixe vazio para manter a chave atual"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEvolutionInst(!showEvolutionInst)}
+                style={{ position: 'absolute', right: '10px', top: '32px', background: 'none', border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}
+              >
+                {showEvolutionInst ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="EVOLUTION_API_KEY"
+                type={showEvolutionKey ? 'text' : 'password'}
+                value={evolutionKeyInput}
+                onChange={setEvolutionKeyInput}
+                placeholder="Deixe vazio para manter a chave atual"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEvolutionKey(!showEvolutionKey)}
+                style={{ position: 'absolute', right: '10px', top: '32px', background: 'none', border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}
+              >
+                {showEvolutionKey ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <Botao
+                variante="primario"
+                style={{ width: 'auto', padding: '10px 16px' }}
+                onClick={async () => {
+                  if (evolutionUrlInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_URL', valor: evolutionUrlInput })
+                  if (evolutionInstInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_INSTANCE', valor: evolutionInstInput })
+                  if (evolutionKeyInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_KEY', valor: evolutionKeyInput })
+                  refetchStatusWhatsApp()
+                }}
+                carregando={atualizarIntegracaoMutation.isPending}
+              >
+                Salvar
+              </Botao>
+              <Botao
+                variante="secundario"
+                style={{ width: 'auto', padding: '10px 16px' }}
+                onClick={() => testarConexao('evolution')}
+                disabled={statusTestes['evolution']?.carregando}
+              >
+                {statusTestes['evolution']?.carregando ? 'Testando...' : 'Testar Conexão'}
+              </Botao>
+            </div>
+          </div>
+          {statusTestes['evolution']?.msg && (
+            <div style={{
+              marginTop: '10px',
+              fontSize: '0.8rem',
+              color: statusTestes['evolution']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+              fontWeight: 'bold'
+            }}>
+              {statusTestes['evolution']?.msg}
+            </div>
+          )}
         </div>
       </Cartao>
 
