@@ -21,7 +21,6 @@ interface IntegracaoStatus {
 }
 
 interface IntegracoesInfo {
-  claudeApi: IntegracaoStatus
   pluggy: IntegracaoStatus
   evolutionApi: IntegracaoStatus
   iaConfig?: {
@@ -358,12 +357,18 @@ export default function Configuracoes() {
                     Google AI Studio
                   </a>
                 </span>
-                {statusIntegracoes?.iaConfig?.gemini.configurado && (
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
-                    background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
-                    Configurado {statusIntegracoes.iaConfig.gemini.preview}
-                  </span>
-                )}
+                <span style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  background: statusIntegracoes?.iaConfig?.gemini.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                  color: statusIntegracoes?.iaConfig?.gemini.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+                  fontWeight: 'bold'
+                }}>
+                  {statusIntegracoes?.iaConfig?.gemini.configurado
+                    ? `✅ Configurado — chave: ${statusIntegracoes.iaConfig.gemini.preview}`
+                    : '⚠️ Não configurado'}
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
@@ -372,7 +377,7 @@ export default function Configuracoes() {
                     type={showGeminiKey ? 'text' : 'password'}
                     value={geminiKeyInput}
                     onChange={setGeminiKeyInput}
-                    placeholder="AIza..."
+                    placeholder="Deixe vazio para manter a chave atual"
                   />
                   <button type="button" onClick={() => setShowGeminiKey(!showGeminiKey)}
                     style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
@@ -398,12 +403,18 @@ export default function Configuracoes() {
                     console.anthropic.com
                   </a>
                 </span>
-                {statusIntegracoes?.iaConfig?.claude.configurado && (
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
-                    background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
-                    Configurado {statusIntegracoes.iaConfig.claude.preview}
-                  </span>
-                )}
+                <span style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  background: statusIntegracoes?.iaConfig?.claude.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                  color: statusIntegracoes?.iaConfig?.claude.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+                  fontWeight: 'bold'
+                }}>
+                  {statusIntegracoes?.iaConfig?.claude.configurado
+                    ? `✅ Configurado — chave: ${statusIntegracoes.iaConfig.claude.preview}`
+                    : '⚠️ Não configurado'}
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
@@ -412,7 +423,7 @@ export default function Configuracoes() {
                     type={showClaude ? 'text' : 'password'}
                     value={claudeKeyInput}
                     onChange={setClaudeKeyInput}
-                    placeholder="sk-ant-..."
+                    placeholder="Deixe vazio para manter a chave atual"
                   />
                   <button type="button" onClick={() => setShowClaude(!showClaude)}
                     style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
@@ -438,12 +449,18 @@ export default function Configuracoes() {
                     platform.openai.com
                   </a>
                 </span>
-                {statusIntegracoes?.iaConfig?.openai.configurado && (
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
-                    background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
-                    Configurado {statusIntegracoes.iaConfig.openai.preview}
-                  </span>
-                )}
+                <span style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  background: statusIntegracoes?.iaConfig?.openai.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                  color: statusIntegracoes?.iaConfig?.openai.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+                  fontWeight: 'bold'
+                }}>
+                  {statusIntegracoes?.iaConfig?.openai.configurado
+                    ? `✅ Configurado — chave: ${statusIntegracoes.iaConfig.openai.preview}`
+                    : '⚠️ Não configurado'}
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
@@ -452,7 +469,7 @@ export default function Configuracoes() {
                     type={showOpenaiKey ? 'text' : 'password'}
                     value={openaiKeyInput}
                     onChange={setOpenaiKeyInput}
-                    placeholder="sk-..."
+                    placeholder="Deixe vazio para manter a chave atual"
                   />
                   <button type="button" onClick={() => setShowOpenaiKey(!showOpenaiKey)}
                     style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
@@ -517,7 +534,7 @@ export default function Configuracoes() {
               color: statusIntegracoes?.pluggy.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
               fontWeight: 'bold'
             }}>
-              {statusIntegracoes?.pluggy.configurado ? 'Configurado' : 'Não configurado'}
+              {statusIntegracoes?.pluggy.configurado ? '✅ Configurado' : '⚠️ Não configurado'}
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
@@ -527,7 +544,7 @@ export default function Configuracoes() {
                 type={showPluggyId ? 'text' : 'password'}
                 value={pluggyIdInput}
                 onChange={setPluggyIdInput}
-                placeholder="Inserir novo Client ID"
+                placeholder="Deixe vazio para manter a chave atual"
               />
               <button
                 type="button"
@@ -551,7 +568,7 @@ export default function Configuracoes() {
                 type={showPluggySecret ? 'text' : 'password'}
                 value={pluggySecretInput}
                 onChange={setPluggySecretInput}
-                placeholder="Inserir novo Client Secret"
+                placeholder="Deixe vazio para manter a chave atual"
               />
               <button
                 type="button"
@@ -617,7 +634,7 @@ export default function Configuracoes() {
               color: statusIntegracoes?.evolutionApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
               fontWeight: 'bold'
             }}>
-              {statusIntegracoes?.evolutionApi.configurado ? 'Configurado' : 'Não configurado'}
+              {statusIntegracoes?.evolutionApi.configurado ? '✅ Configurado' : '⚠️ Não configurado'}
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
@@ -627,7 +644,7 @@ export default function Configuracoes() {
                 type={showEvolutionUrl ? 'text' : 'password'}
                 value={evolutionUrlInput}
                 onChange={setEvolutionUrlInput}
-                placeholder="Ex: http://localhost:8080"
+                placeholder="Deixe vazio para manter a chave atual"
               />
               <button
                 type="button"
@@ -651,7 +668,7 @@ export default function Configuracoes() {
                 type={showEvolutionInst ? 'text' : 'password'}
                 value={evolutionInstInput}
                 onChange={setEvolutionInstInput}
-                placeholder="Ex: financas-casal"
+                placeholder="Deixe vazio para manter a chave atual"
               />
               <button
                 type="button"
@@ -675,7 +692,7 @@ export default function Configuracoes() {
                 type={showEvolutionKey ? 'text' : 'password'}
                 value={evolutionKeyInput}
                 onChange={setEvolutionKeyInput}
-                placeholder="Inserir Evolution API Token"
+                placeholder="Deixe vazio para manter a chave atual"
               />
               <button
                 type="button"

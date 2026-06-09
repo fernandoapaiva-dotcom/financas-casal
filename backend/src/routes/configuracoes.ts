@@ -65,22 +65,14 @@ router.get('/integracoes', autenticacaoMiddleware, (req: Request, res: Response)
 
     res.json({
       dados: {
-        claudeApi: {
-          configurado: !!claudeKey,
-          preview: previewKey(claudeKey)
-        },
-        pluggy: {
-          configurado: !!(pluggyId && pluggySecret)
-        },
-        evolutionApi: {
-          configurado: !!(evolutionUrl && evolutionInst && evolutionKey)
-        },
         iaConfig: {
           provedor: process.env.IA_PROVEDOR || 'gemini',
-          gemini: { configurado: !!process.env.GEMINI_API_KEY, preview: previewKey(process.env.GEMINI_API_KEY || '') },
-          claude: { configurado: !!process.env.CLAUDE_API_KEY, preview: previewKey(process.env.CLAUDE_API_KEY || '') },
-          openai: { configurado: !!process.env.OPENAI_API_KEY, preview: previewKey(process.env.OPENAI_API_KEY || '') }
-        }
+          gemini: { configurado: !!process.env.GEMINI_API_KEY, preview: process.env.GEMINI_API_KEY ? "..." + process.env.GEMINI_API_KEY.slice(-4) : null },
+          claude: { configurado: !!process.env.CLAUDE_API_KEY, preview: process.env.CLAUDE_API_KEY ? "..." + process.env.CLAUDE_API_KEY.slice(-4) : null },
+          openai: { configurado: !!process.env.OPENAI_API_KEY, preview: process.env.OPENAI_API_KEY ? "..." + process.env.OPENAI_API_KEY.slice(-4) : null }
+        },
+        pluggy: { configurado: !!(process.env.PLUGGY_CLIENT_ID && process.env.PLUGGY_CLIENT_SECRET) },
+        evolutionApi: { configurado: !!(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY) }
       },
       erro: false,
       mensagem: 'Integrações listadas com sucesso'
