@@ -24,6 +24,30 @@ function evolutionInstance() {
   return process.env.EVOLUTION_INSTANCE || 'financas-casal'
 }
 
+async function obterQrCode(base: string, instance: string): Promise<string> {
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  for (let i = 0; i < 4; i++) { // tentativa inicial + até 3 retentativas
+    try {
+      const resposta = await axios.get(
+        `${base}/instance/connect/${instance}`,
+        { headers: evolutionHeaders(), timeout: 10000 }
+      )
+      const data = resposta.data
+      const qrcode = data?.base64 || data?.qrcode?.base64 || data?.code || ''
+      if (qrcode) {
+        // Remove prefixo "data:image/png;base64," se já vier incluído
+        return qrcode.replace(/^data:image\/[a-z]+;base64,/, '')
+      }
+    } catch (err) {
+      console.error(`Erro ao obter QR Code (tentativa ${i + 1}):`, err)
+    }
+    if (i < 3) {
+      await delay(3000)
+    }
+  }
+  return ''
+}
+
 // ---------------------------------------------------------------------------
 // GET /whatsapp/status  (requer autenticacao)
 // ---------------------------------------------------------------------------
@@ -89,36 +113,60 @@ router.get('/status', autenticacaoMiddleware, async (req: Request, res: Response
 // POST /whatsapp/criar-instancia  (requer autenticacao)
 // ---------------------------------------------------------------------------
 router.post('/criar-instancia', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  const base = evolutionBase()
+  if (!base) {
+    return res.status(400).json({
+      dados: null,
+      erro: true,
+      mensagem: 'Evolution API não configurada. Salve as credenciais antes.',
+    })
+  }
   try {
-    const base = evolutionBase()
-    if (!base) {
-      return res.status(400).json({
-        dados: null,
-        erro: true,
-        mensagem: 'Evolution API não configurada. Salve as credenciais antes.',
+
+    // 1. Verificar se a instância já existe
+    let existe = false
+    try {
+      const respostaInstancias = await axios.get(`${base}/instance/fetchInstances`, {
+        headers: evolutionHeaders(),
+        timeout: 8000,
       })
+      const instancias = Array.isArray(respostaInstancias.data) ? respostaInstancias.data : []
+      existe = instancias.some(
+        (i: any) =>
+          i.instance?.instanceName === evolutionInstance() ||
+          i.name === evolutionInstance() ||
+          i.instanceName === evolutionInstance()
+      )
+    } catch (err) {
+      console.warn('Erro ao verificar instâncias existentes:', err)
     }
 
-    await axios.post(
-      `${base}/instance/create`,
-      {
-        instanceName: evolutionInstance(),
-        qrcode: true,
-        integration: 'WHATSAPP-BAILEYS',
-      },
-      { headers: evolutionHeaders(), timeout: 10000 }
-    )
+    // 2. Se não existir, cria a instância
+    if (!existe) {
+      await axios.post(
+        `${base}/instance/create`,
+        {
+          instanceName: evolutionInstance(),
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+        },
+        { headers: evolutionHeaders(), timeout: 10000 }
+      )
+    }
+
+    // 3. Obter QR Code
+    const qrcode = await obterQrCode(base, evolutionInstance())
 
     return res.json({
-      dados: { instanciaCriada: true },
+      dados: { instanciaCriada: !existe, qrcode },
       erro: false,
-      mensagem: 'Instância criada com sucesso',
+      mensagem: existe ? 'Instância já existente' : 'Instância criada com sucesso',
     })
   } catch (error: any) {
-    // 409 = instância já existe — não é um erro real
     if (error.response?.status === 409) {
+      const qrcode = await obterQrCode(base, evolutionInstance())
       return res.json({
-        dados: { instanciaCriada: true },
+        dados: { instanciaCriada: false, qrcode },
         erro: false,
         mensagem: 'Instância já existente',
       })
@@ -148,18 +196,7 @@ router.get('/qrcode', autenticacaoMiddleware, async (req: Request, res: Response
       })
     }
 
-    const resposta = await axios.get(
-      `${base}/instance/connect/${evolutionInstance()}`,
-      { headers: evolutionHeaders(), timeout: 10000 }
-    )
-
-    const data = resposta.data
-    // A Evolution API pode retornar o base64 em locais diferentes dependendo da versão
-    const qrcode: string =
-      data?.base64 ||
-      data?.qrcode?.base64 ||
-      data?.code ||
-      ''
+    const qrcode = await obterQrCode(base, evolutionInstance())
 
     if (!qrcode) {
       return res.status(404).json({
@@ -169,11 +206,8 @@ router.get('/qrcode', autenticacaoMiddleware, async (req: Request, res: Response
       })
     }
 
-    // Remove prefixo "data:image/png;base64," se já vier incluído
-    const base64Limpo = qrcode.replace(/^data:image\/[a-z]+;base64,/, '')
-
     return res.json({
-      dados: { qrcode: base64Limpo },
+      dados: { qrcode },
       erro: false,
       mensagem: '',
     })
