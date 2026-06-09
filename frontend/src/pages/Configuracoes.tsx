@@ -15,6 +15,17 @@ interface Alerta {
   urgente: boolean
 }
 
+interface IntegracaoStatus {
+  configurado: boolean
+  preview?: string
+}
+
+interface IntegracoesInfo {
+  claudeApi: IntegracaoStatus
+  pluggy: IntegracaoStatus
+  evolutionApi: IntegracaoStatus
+}
+
 export default function Configuracoes() {
   const queryClient = useQueryClient()
   const { data: casal, isLoading } = useCasal()
@@ -37,6 +48,33 @@ export default function Configuracoes() {
   const [compraValor, setCompraValor] = useState('')
   const [compraParcelas, setCompraParcelas] = useState('1')
   const [resultadoCompra, setResultadoCompra] = useState<any>(null)
+
+  // Estados locais para Integrações
+  const [showClaude, setShowClaude] = useState(false)
+  const [claudeKeyInput, setClaudeKeyInput] = useState('')
+
+  const [showPluggyId, setShowPluggyId] = useState(false)
+  const [pluggyIdInput, setPluggyIdInput] = useState('')
+  const [showPluggySecret, setShowPluggySecret] = useState(false)
+  const [pluggySecretInput, setPluggySecretInput] = useState('')
+
+  const [showEvolutionUrl, setShowEvolutionUrl] = useState(false)
+  const [evolutionUrlInput, setEvolutionUrlInput] = useState('')
+  const [showEvolutionInst, setShowEvolutionInst] = useState(false)
+  const [evolutionInstInput, setEvolutionInstInput] = useState('')
+  const [showEvolutionKey, setShowEvolutionKey] = useState(false)
+  const [evolutionKeyInput, setEvolutionKeyInput] = useState('')
+
+  const [statusTestes, setStatusTestes] = useState<{ [key: string]: { carregando: boolean; sucesso?: boolean; msg?: string } }>({})
+
+  // Buscar status das integrações
+  const { data: statusIntegracoes, isLoading: carregandoIntegracoes, refetch: refetchIntegracoes } = useQuery<IntegracoesInfo>({
+    queryKey: ['integracoes-status'],
+    queryFn: async () => {
+      const res = await api.get('/configuracoes/integracoes')
+      return res.data.dados
+    }
+  })
 
   // Buscar alertas ativos
   const { data: alertas, isLoading: carregandoAlertas } = useQuery<Alerta[]>({
@@ -101,6 +139,49 @@ export default function Configuracoes() {
     },
   })
 
+  const atualizarIntegracaoMutation = useMutation({
+    mutationFn: async (dados: { chave: string; valor: string }) => {
+      const res = await api.put('/configuracoes/integracoes', dados)
+      return res.data
+    },
+    onSuccess: () => {
+      refetchIntegracoes()
+      alert('Configuração salva com sucesso!')
+    },
+    onError: (err: any) => {
+      alert(`Erro ao salvar: ${err.response?.data?.mensagem || err.message}`)
+    }
+  })
+
+  const testarConexao = async (integracao: string) => {
+    setStatusTestes(prev => ({
+      ...prev,
+      [integracao]: { carregando: true }
+    }))
+
+    try {
+      const res = await api.post('/configuracoes/integracoes/testar', { integracao })
+      const dados = res.data.dados
+      setStatusTestes(prev => ({
+        ...prev,
+        [integracao]: {
+          carregando: false,
+          sucesso: dados.sucesso,
+          msg: dados.mensagem
+        }
+      }))
+    } catch (err: any) {
+      setStatusTestes(prev => ({
+        ...prev,
+        [integracao]: {
+          carregando: false,
+          sucesso: false,
+          msg: err.response?.data?.mensagem || err.message
+        }
+      }))
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!nomeCasal) return
@@ -127,7 +208,7 @@ export default function Configuracoes() {
     })
   }
 
-  if (isLoading || carregandoAlertas) {
+  if (isLoading || carregandoAlertas || carregandoIntegracoes) {
     return <Carregando />
   }
 
@@ -201,6 +282,308 @@ export default function Configuracoes() {
         </form>
       </Cartao>
 
+      {/* Integrações e APIs */}
+      <Cartao>
+        <h3 style={{ fontSize: '1.05rem', marginBottom: '8px' }}>⚙️ Integrações e APIs</h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)', marginBottom: '16px' }}>
+          Configure as credenciais e conexões com APIs externas para utilizar os recursos de inteligência artificial, importação bancária e WhatsApp.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Claude API */}
+          <div style={{ borderBottom: '1px solid var(--cor-borda)', paddingBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Claude API (Anthropic)</span>
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                background: statusIntegracoes?.claudeApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                color: statusIntegracoes?.claudeApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+                fontWeight: 'bold'
+              }}>
+                {statusIntegracoes?.claudeApi.configurado ? `Configurado (${statusIntegracoes.claudeApi.preview})` : 'Não configurado'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end', marginTop: '12px' }}>
+              <div style={{ flex: '1 1 250px', position: 'relative' }}>
+                <Campo
+                  label="CLAUDE_API_KEY"
+                  type={showClaude ? 'text' : 'password'}
+                  value={claudeKeyInput}
+                  onChange={setClaudeKeyInput}
+                  placeholder="Inserir nova chave"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowClaude(!showClaude)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '32px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--cor-texto-fraco)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showClaude ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Botao
+                  variante="primario"
+                  style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'CLAUDE_API_KEY', valor: claudeKeyInput })}
+                  carregando={atualizarIntegracaoMutation.isPending && atualizarIntegracaoMutation.variables?.chave === 'CLAUDE_API_KEY'}
+                >
+                  Salvar
+                </Botao>
+                <Botao
+                  variante="secundario"
+                  style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => testarConexao('claude')}
+                  disabled={statusTestes['claude']?.carregando}
+                >
+                  {statusTestes['claude']?.carregando ? 'Testando...' : 'Testar Conexão'}
+                </Botao>
+              </div>
+            </div>
+            {statusTestes['claude']?.msg && (
+              <div style={{
+                marginTop: '10px',
+                fontSize: '0.8rem',
+                color: statusTestes['claude']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+                fontWeight: 'bold'
+              }}>
+                {statusTestes['claude']?.msg}
+              </div>
+            )}
+          </div>
+
+          {/* Pluggy */}
+          <div style={{ borderBottom: '1px solid var(--cor-borda)', paddingBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Pluggy (Integração Bancária)</span>
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                background: statusIntegracoes?.pluggy.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                color: statusIntegracoes?.pluggy.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+                fontWeight: 'bold'
+              }}>
+                {statusIntegracoes?.pluggy.configurado ? 'Configurado' : 'Não configurado'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              <div style={{ position: 'relative' }}>
+                <Campo
+                  label="PLUGGY_CLIENT_ID"
+                  type={showPluggyId ? 'text' : 'password'}
+                  value={pluggyIdInput}
+                  onChange={setPluggyIdInput}
+                  placeholder="Inserir novo Client ID"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPluggyId(!showPluggyId)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '32px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--cor-texto-fraco)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showPluggyId ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Campo
+                  label="PLUGGY_CLIENT_SECRET"
+                  type={showPluggySecret ? 'text' : 'password'}
+                  value={pluggySecretInput}
+                  onChange={setPluggySecretInput}
+                  placeholder="Inserir novo Client Secret"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPluggySecret(!showPluggySecret)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '32px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--cor-texto-fraco)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showPluggySecret ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <Botao
+                  variante="primario"
+                  style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={async () => {
+                    if (pluggyIdInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'PLUGGY_CLIENT_ID', valor: pluggyIdInput })
+                    if (pluggySecretInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'PLUGGY_CLIENT_SECRET', valor: pluggySecretInput })
+                  }}
+                  carregando={atualizarIntegracaoMutation.isPending}
+                >
+                  Salvar
+                </Botao>
+                <Botao
+                  variante="secundario"
+                  style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => testarConexao('pluggy')}
+                  disabled={statusTestes['pluggy']?.carregando}
+                >
+                  {statusTestes['pluggy']?.carregando ? 'Testando...' : 'Testar Conexão'}
+                </Botao>
+              </div>
+            </div>
+            {statusTestes['pluggy']?.msg && (
+              <div style={{
+                marginTop: '10px',
+                fontSize: '0.8rem',
+                color: statusTestes['pluggy']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+                fontWeight: 'bold'
+              }}>
+                {statusTestes['pluggy']?.msg}
+              </div>
+            )}
+          </div>
+
+          {/* Evolution API */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Evolution API (WhatsApp Bot)</span>
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                background: statusIntegracoes?.evolutionApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                color: statusIntegracoes?.evolutionApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+                fontWeight: 'bold'
+              }}>
+                {statusIntegracoes?.evolutionApi.configurado ? 'Configurado' : 'Não configurado'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              <div style={{ position: 'relative' }}>
+                <Campo
+                  label="EVOLUTION_API_URL"
+                  type={showEvolutionUrl ? 'text' : 'password'}
+                  value={evolutionUrlInput}
+                  onChange={setEvolutionUrlInput}
+                  placeholder="Ex: http://localhost:8080"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEvolutionUrl(!showEvolutionUrl)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '32px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--cor-texto-fraco)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showEvolutionUrl ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Campo
+                  label="EVOLUTION_INSTANCE"
+                  type={showEvolutionInst ? 'text' : 'password'}
+                  value={evolutionInstInput}
+                  onChange={setEvolutionInstInput}
+                  placeholder="Ex: financas-casal"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEvolutionInst(!showEvolutionInst)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '32px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--cor-texto-fraco)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showEvolutionInst ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Campo
+                  label="EVOLUTION_API_KEY"
+                  type={showEvolutionKey ? 'text' : 'password'}
+                  value={evolutionKeyInput}
+                  onChange={setEvolutionKeyInput}
+                  placeholder="Inserir Evolution API Token"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEvolutionKey(!showEvolutionKey)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '32px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--cor-texto-fraco)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showEvolutionKey ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <Botao
+                  variante="primario"
+                  style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={async () => {
+                    if (evolutionUrlInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_URL', valor: evolutionUrlInput })
+                    if (evolutionInstInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_INSTANCE', valor: evolutionInstInput })
+                    if (evolutionKeyInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_KEY', valor: evolutionKeyInput })
+                  }}
+                  carregando={atualizarIntegracaoMutation.isPending}
+                >
+                  Salvar
+                </Botao>
+                <Botao
+                  variante="secundario"
+                  style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => testarConexao('evolution')}
+                  disabled={statusTestes['evolution']?.carregando}
+                >
+                  {statusTestes['evolution']?.carregando ? 'Testando...' : 'Testar Conexão'}
+                </Botao>
+              </div>
+            </div>
+            {statusTestes['evolution']?.msg && (
+              <div style={{
+                marginTop: '10px',
+                fontSize: '0.8rem',
+                color: statusTestes['evolution']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+                fontWeight: 'bold'
+              }}>
+                {statusTestes['evolution']?.msg}
+              </div>
+            )}
+          </div>
+        </div>
+      </Cartao>
+
       {/* Card Painel de Alertas */}
       <Cartao>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -239,7 +622,7 @@ export default function Configuracoes() {
         )}
       </Cartao>
 
-      {/* Membros do Casal */}
+      {/* Parceiros */}
       <Cartao>
         <h3 style={{ fontSize: '1.05rem', marginBottom: '12px' }}>Parceiros</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
