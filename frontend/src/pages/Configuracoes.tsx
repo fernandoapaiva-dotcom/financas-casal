@@ -303,503 +303,429 @@ export default function Configuracoes() {
         </form>
       </Cartao>
 
-      {/* Motor de IA */}
+      {/* Configurações do Sistema */}
       <Cartao>
-        <h3 style={{ fontSize: '1.05rem', marginBottom: '8px' }}>🤖 Motor de IA</h3>
-        <p style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)', marginBottom: '16px' }}>
-          Escolha qual provedor de IA será usado para análises financeiras, categorização e respostas no WhatsApp.
-        </p>
-
-        {/* Select de provedor */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)', display: 'block', marginBottom: '6px' }}>
-            Provedor de IA
-          </label>
-          <select
-            value={provedorIA}
-            onChange={async (e) => {
-              const novoProvedor = e.target.value
-              setProvedorIA(novoProvedor)
-              try {
-                await api.put('/configuracoes/integracoes', { chave: 'IA_PROVEDOR', valor: novoProvedor })
-                refetchIntegracoes()
-              } catch (err: any) {
-                alert(`Erro ao salvar provedor: ${err.response?.data?.mensagem || err.message}`)
-              }
-            }}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 'var(--raio)',
-              border: '1px solid var(--cor-borda)',
-              background: 'var(--cor-card-2)',
-              color: 'var(--cor-texto)',
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="gemini">✨ Gemini (Gratuito)</option>
-            <option value="claude">Claude (Anthropic)</option>
-            <option value="openai">OpenAI (GPT-4o-mini)</option>
-          </select>
-        </div>
-
-        {/* Campo de API key baseado no provedor selecionado */}
-        {provedorIA === 'gemini' && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
-                Obtenha sua chave gratuita em{' '}
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
-                  style={{ color: 'var(--cor-primaria)', textDecoration: 'none' }}>
-                  Google AI Studio
-                </a>
-              </span>
-              {statusIntegracoes?.iaConfig?.gemini.configurado && (
-                <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
-                  background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
-                  Configurado {statusIntegracoes.iaConfig.gemini.preview}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <Campo
-                  label="GEMINI_API_KEY"
-                  type={showGeminiKey ? 'text' : 'password'}
-                  value={geminiKeyInput}
-                  onChange={setGeminiKeyInput}
-                  placeholder="AIza..."
-                />
-                <button type="button" onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
-                    border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}>
-                  {showGeminiKey ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <Botao variante="primario" style={{ width: 'auto', padding: '10px 16px' }}
-                onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'GEMINI_API_KEY', valor: geminiKeyInput })}>
-                Salvar
-              </Botao>
-            </div>
-          </div>
-        )}
-
-        {provedorIA === 'claude' && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
-                Obtenha sua chave em{' '}
-                <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer"
-                  style={{ color: 'var(--cor-primaria)', textDecoration: 'none' }}>
-                  console.anthropic.com
-                </a>
-              </span>
-              {statusIntegracoes?.iaConfig?.claude.configurado && (
-                <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
-                  background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
-                  Configurado {statusIntegracoes.iaConfig.claude.preview}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <Campo
-                  label="CLAUDE_API_KEY"
-                  type={showClaude ? 'text' : 'password'}
-                  value={claudeKeyInput}
-                  onChange={setClaudeKeyInput}
-                  placeholder="sk-ant-..."
-                />
-                <button type="button" onClick={() => setShowClaude(!showClaude)}
-                  style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
-                    border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}>
-                  {showClaude ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <Botao variante="primario" style={{ width: 'auto', padding: '10px 16px' }}
-                onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'CLAUDE_API_KEY', valor: claudeKeyInput })}>
-                Salvar
-              </Botao>
-            </div>
-          </div>
-        )}
-
-        {provedorIA === 'openai' && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
-                Obtenha sua chave em{' '}
-                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer"
-                  style={{ color: 'var(--cor-primaria)', textDecoration: 'none' }}>
-                  platform.openai.com
-                </a>
-              </span>
-              {statusIntegracoes?.iaConfig?.openai.configurado && (
-                <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
-                  background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
-                  Configurado {statusIntegracoes.iaConfig.openai.preview}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <Campo
-                  label="OPENAI_API_KEY"
-                  type={showOpenaiKey ? 'text' : 'password'}
-                  value={openaiKeyInput}
-                  onChange={setOpenaiKeyInput}
-                  placeholder="sk-..."
-                />
-                <button type="button" onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
-                    border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}>
-                  {showOpenaiKey ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <Botao variante="primario" style={{ width: 'auto', padding: '10px 16px' }}
-                onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'OPENAI_API_KEY', valor: openaiKeyInput })}>
-                Salvar
-              </Botao>
-            </div>
-          </div>
-        )}
-
-        {/* Botão Testar */}
-        <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Botao
-            variante="secundario"
-            style={{ width: 'auto', padding: '10px 20px' }}
-            onClick={async () => {
-              setStatusMotorIA({ carregando: true })
-              try {
-                const res = await api.post('/configuracoes/integracoes/testar', { integracao: provedorIA })
-                const dados = res.data.dados
-                setStatusMotorIA({ carregando: false, sucesso: dados.sucesso, msg: dados.mensagem })
-              } catch (err: any) {
-                setStatusMotorIA({ carregando: false, sucesso: false, msg: err.response?.data?.mensagem || err.message })
-              }
-            }}
-            disabled={statusMotorIA.carregando}
-          >
-            {statusMotorIA.carregando ? 'Testando...' : '🔌 Testar conexão'}
-          </Botao>
-          {statusMotorIA.msg && (
-            <span style={{
-              fontSize: '0.8rem',
-              fontWeight: 'bold',
-              color: statusMotorIA.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}>
-              <span>{statusMotorIA.sucesso ? '✅' : '❌'}</span>
-              <span>{statusMotorIA.msg}</span>
-            </span>
-          )}
-        </div>
-      </Cartao>
-
-      {/* Integrações e APIs */}
-      <Cartao>
-
-        <h3 style={{ fontSize: '1.05rem', marginBottom: '8px' }}>⚙️ Integrações e APIs</h3>
+        <h3 style={{ fontSize: '1.05rem', marginBottom: '8px' }}>⚙️ Configurações do Sistema</h3>
         <p style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)', marginBottom: '16px' }}>
           Configure as credenciais e conexões com APIs externas para utilizar os recursos de inteligência artificial, importação bancária e WhatsApp.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Claude API */}
-          <div style={{ borderBottom: '1px solid var(--cor-borda)', paddingBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Claude API (Anthropic)</span>
-              <span style={{
-                fontSize: '0.75rem',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                background: statusIntegracoes?.claudeApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                color: statusIntegracoes?.claudeApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
-                fontWeight: 'bold'
-              }}>
-                {statusIntegracoes?.claudeApi.configurado ? `Configurado (${statusIntegracoes.claudeApi.preview})` : 'Não configurado'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end', marginTop: '12px' }}>
-              <div style={{ flex: '1 1 250px', position: 'relative' }}>
-                <Campo
-                  label="CLAUDE_API_KEY"
-                  type={showClaude ? 'text' : 'password'}
-                  value={claudeKeyInput}
-                  onChange={setClaudeKeyInput}
-                  placeholder="Inserir nova chave"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowClaude(!showClaude)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '32px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--cor-texto-fraco)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {showClaude ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <Botao
-                  variante="primario"
-                  style={{ width: 'auto', padding: '10px 16px' }}
-                  onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'CLAUDE_API_KEY', valor: claudeKeyInput })}
-                  carregando={atualizarIntegracaoMutation.isPending && atualizarIntegracaoMutation.variables?.chave === 'CLAUDE_API_KEY'}
-                >
-                  Salvar
-                </Botao>
-                <Botao
-                  variante="secundario"
-                  style={{ width: 'auto', padding: '10px 16px' }}
-                  onClick={() => testarConexao('claude')}
-                  disabled={statusTestes['claude']?.carregando}
-                >
-                  {statusTestes['claude']?.carregando ? 'Testando...' : 'Testar Conexão'}
-                </Botao>
-              </div>
-            </div>
-            {statusTestes['claude']?.msg && (
-              <div style={{
-                marginTop: '10px',
-                fontSize: '0.8rem',
-                color: statusTestes['claude']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
-                fontWeight: 'bold'
-              }}>
-                {statusTestes['claude']?.msg}
-              </div>
-            )}
+        {/* Seção: Motor de IA */}
+        <div>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '12px' }}>🤖 Motor de IA</h4>
+          {/* Select de provedor */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)', display: 'block', marginBottom: '6px' }}>
+              Provedor de IA Ativo
+            </label>
+            <select
+              value={provedorIA}
+              onChange={async (e) => {
+                const novoProvedor = e.target.value
+                setProvedorIA(novoProvedor)
+                try {
+                  await api.put('/configuracoes/integracoes', { chave: 'IA_PROVEDOR', valor: novoProvedor })
+                  refetchIntegracoes()
+                } catch (err: any) {
+                  alert(`Erro ao salvar provedor: ${err.response?.data?.mensagem || err.message}`)
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: 'var(--raio)',
+                border: '1px solid var(--cor-borda)',
+                background: 'var(--cor-card-2)',
+                color: 'var(--cor-texto)',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="gemini">✨ Gemini (Gratuito)</option>
+              <option value="claude">Claude (Anthropic)</option>
+              <option value="openai">OpenAI (GPT-4o-mini)</option>
+            </select>
           </div>
 
-          {/* Pluggy */}
-          <div style={{ borderBottom: '1px solid var(--cor-borda)', paddingBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Pluggy (Integração Bancária)</span>
-              <span style={{
-                fontSize: '0.75rem',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                background: statusIntegracoes?.pluggy.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                color: statusIntegracoes?.pluggy.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
-                fontWeight: 'bold'
-              }}>
-                {statusIntegracoes?.pluggy.configurado ? 'Configurado' : 'Não configurado'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              <div style={{ position: 'relative' }}>
-                <Campo
-                  label="PLUGGY_CLIENT_ID"
-                  type={showPluggyId ? 'text' : 'password'}
-                  value={pluggyIdInput}
-                  onChange={setPluggyIdInput}
-                  placeholder="Inserir novo Client ID"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPluggyId(!showPluggyId)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '32px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--cor-texto-fraco)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {showPluggyId ? '🙈' : '👁️'}
-                </button>
+          {/* Campo de API key baseado no provedor selecionado */}
+          {provedorIA === 'gemini' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
+                  Obtenha sua chave gratuita em{' '}
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                    style={{ color: 'var(--cor-primaria)', textDecoration: 'none' }}>
+                    Google AI Studio
+                  </a>
+                </span>
+                {statusIntegracoes?.iaConfig?.gemini.configurado && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
+                    background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
+                    Configurado {statusIntegracoes.iaConfig.gemini.preview}
+                  </span>
+                )}
               </div>
-              <div style={{ position: 'relative' }}>
-                <Campo
-                  label="PLUGGY_CLIENT_SECRET"
-                  type={showPluggySecret ? 'text' : 'password'}
-                  value={pluggySecretInput}
-                  onChange={setPluggySecretInput}
-                  placeholder="Inserir novo Client Secret"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPluggySecret(!showPluggySecret)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '32px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--cor-texto-fraco)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {showPluggySecret ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                <Botao
-                  variante="primario"
-                  style={{ width: 'auto', padding: '10px 16px' }}
-                  onClick={async () => {
-                    if (pluggyIdInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'PLUGGY_CLIENT_ID', valor: pluggyIdInput })
-                    if (pluggySecretInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'PLUGGY_CLIENT_SECRET', valor: pluggySecretInput })
-                  }}
-                  carregando={atualizarIntegracaoMutation.isPending}
-                >
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <Campo
+                    label="GEMINI_API_KEY"
+                    type={showGeminiKey ? 'text' : 'password'}
+                    value={geminiKeyInput}
+                    onChange={setGeminiKeyInput}
+                    placeholder="AIza..."
+                  />
+                  <button type="button" onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
+                      border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}>
+                    {showGeminiKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <Botao variante="primario" style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'GEMINI_API_KEY', valor: geminiKeyInput })}>
                   Salvar
                 </Botao>
-                <Botao
-                  variante="secundario"
-                  style={{ width: 'auto', padding: '10px 16px' }}
-                  onClick={() => testarConexao('pluggy')}
-                  disabled={statusTestes['pluggy']?.carregando}
-                >
-                  {statusTestes['pluggy']?.carregando ? 'Testando...' : 'Testar Conexão'}
-                </Botao>
               </div>
             </div>
-            {statusTestes['pluggy']?.msg && (
-              <div style={{
-                marginTop: '10px',
-                fontSize: '0.8rem',
-                color: statusTestes['pluggy']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
-                fontWeight: 'bold'
-              }}>
-                {statusTestes['pluggy']?.msg}
-              </div>
-            )}
-          </div>
+          )}
 
-          {/* Evolution API */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Evolution API (WhatsApp Bot)</span>
-              <span style={{
-                fontSize: '0.75rem',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                background: statusIntegracoes?.evolutionApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                color: statusIntegracoes?.evolutionApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
-                fontWeight: 'bold'
-              }}>
-                {statusIntegracoes?.evolutionApi.configurado ? 'Configurado' : 'Não configurado'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              <div style={{ position: 'relative' }}>
-                <Campo
-                  label="EVOLUTION_API_URL"
-                  type={showEvolutionUrl ? 'text' : 'password'}
-                  value={evolutionUrlInput}
-                  onChange={setEvolutionUrlInput}
-                  placeholder="Ex: http://localhost:8080"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowEvolutionUrl(!showEvolutionUrl)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '32px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--cor-texto-fraco)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {showEvolutionUrl ? '🙈' : '👁️'}
-                </button>
+          {provedorIA === 'claude' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
+                  Obtenha sua chave em{' '}
+                  <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer"
+                    style={{ color: 'var(--cor-primaria)', textDecoration: 'none' }}>
+                    console.anthropic.com
+                  </a>
+                </span>
+                {statusIntegracoes?.iaConfig?.claude.configurado && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
+                    background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
+                    Configurado {statusIntegracoes.iaConfig.claude.preview}
+                  </span>
+                )}
               </div>
-              <div style={{ position: 'relative' }}>
-                <Campo
-                  label="EVOLUTION_INSTANCE"
-                  type={showEvolutionInst ? 'text' : 'password'}
-                  value={evolutionInstInput}
-                  onChange={setEvolutionInstInput}
-                  placeholder="Ex: financas-casal"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowEvolutionInst(!showEvolutionInst)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '32px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--cor-texto-fraco)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {showEvolutionInst ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <Campo
-                  label="EVOLUTION_API_KEY"
-                  type={showEvolutionKey ? 'text' : 'password'}
-                  value={evolutionKeyInput}
-                  onChange={setEvolutionKeyInput}
-                  placeholder="Inserir Evolution API Token"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowEvolutionKey(!showEvolutionKey)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '32px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--cor-texto-fraco)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {showEvolutionKey ? '🙈' : '👁️'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                <Botao
-                  variante="primario"
-                  style={{ width: 'auto', padding: '10px 16px' }}
-                  onClick={async () => {
-                    if (evolutionUrlInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_URL', valor: evolutionUrlInput })
-                    if (evolutionInstInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_INSTANCE', valor: evolutionInstInput })
-                    if (evolutionKeyInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_KEY', valor: evolutionKeyInput })
-                  }}
-                  carregando={atualizarIntegracaoMutation.isPending}
-                >
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <Campo
+                    label="CLAUDE_API_KEY"
+                    type={showClaude ? 'text' : 'password'}
+                    value={claudeKeyInput}
+                    onChange={setClaudeKeyInput}
+                    placeholder="sk-ant-..."
+                  />
+                  <button type="button" onClick={() => setShowClaude(!showClaude)}
+                    style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
+                      border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}>
+                    {showClaude ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <Botao variante="primario" style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'CLAUDE_API_KEY', valor: claudeKeyInput })}>
                   Salvar
                 </Botao>
-                <Botao
-                  variante="secundario"
-                  style={{ width: 'auto', padding: '10px 16px' }}
-                  onClick={() => testarConexao('evolution')}
-                  disabled={statusTestes['evolution']?.carregando}
-                >
-                  {statusTestes['evolution']?.carregando ? 'Testando...' : 'Testar Conexão'}
+              </div>
+            </div>
+          )}
+
+          {provedorIA === 'openai' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--cor-texto-fraco)' }}>
+                  Obtenha sua chave em{' '}
+                  <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer"
+                    style={{ color: 'var(--cor-primaria)', textDecoration: 'none' }}>
+                    platform.openai.com
+                  </a>
+                </span>
+                {statusIntegracoes?.iaConfig?.openai.configurado && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px',
+                    background: 'rgba(16,185,129,0.1)', color: 'var(--cor-sucesso)', fontWeight: 'bold' }}>
+                    Configurado {statusIntegracoes.iaConfig.openai.preview}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <Campo
+                    label="OPENAI_API_KEY"
+                    type={showOpenaiKey ? 'text' : 'password'}
+                    value={openaiKeyInput}
+                    onChange={setOpenaiKeyInput}
+                    placeholder="sk-..."
+                  />
+                  <button type="button" onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                    style={{ position: 'absolute', right: '10px', top: '32px', background: 'none',
+                      border: 'none', color: 'var(--cor-texto-fraco)', cursor: 'pointer' }}>
+                    {showOpenaiKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <Botao variante="primario" style={{ width: 'auto', padding: '10px 16px' }}
+                  onClick={() => atualizarIntegracaoMutation.mutate({ chave: 'OPENAI_API_KEY', valor: openaiKeyInput })}>
+                  Salvar
                 </Botao>
               </div>
             </div>
-            {statusTestes['evolution']?.msg && (
-              <div style={{
-                marginTop: '10px',
+          )}
+
+          {/* Botão Testar Motor */}
+          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Botao
+              variante="secundario"
+              style={{ width: 'auto', padding: '10px 20px' }}
+              onClick={async () => {
+                setStatusMotorIA({ carregando: true })
+                try {
+                  const res = await api.post('/configuracoes/integracoes/testar', { integracao: provedorIA })
+                  const dados = res.data.dados
+                  setStatusMotorIA({ carregando: false, sucesso: dados.sucesso, msg: dados.mensagem })
+                } catch (err: any) {
+                  setStatusMotorIA({ carregando: false, sucesso: false, msg: err.response?.data?.mensagem || err.message })
+                }
+              }}
+              disabled={statusMotorIA.carregando}
+            >
+              {statusMotorIA.carregando ? 'Testando...' : '🔌 Testar motor de IA'}
+            </Botao>
+            {statusMotorIA.msg && (
+              <span style={{
                 fontSize: '0.8rem',
-                color: statusTestes['evolution']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                color: statusMotorIA.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               }}>
-                {statusTestes['evolution']?.msg}
-              </div>
+                <span>{statusMotorIA.sucesso ? '✅' : '❌'}</span>
+                <span>{statusMotorIA.msg}</span>
+              </span>
             )}
           </div>
+        </div>
+
+        <hr style={{ border: 0, borderTop: '1px solid var(--cor-borda)', margin: '24px 0' }} />
+
+        {/* Seção: Pluggy */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>🔌 Pluggy (Integração Bancária)</h4>
+            <span style={{
+              fontSize: '0.75rem',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              background: statusIntegracoes?.pluggy.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+              color: statusIntegracoes?.pluggy.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+              fontWeight: 'bold'
+            }}>
+              {statusIntegracoes?.pluggy.configurado ? 'Configurado' : 'Não configurado'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="PLUGGY_CLIENT_ID"
+                type={showPluggyId ? 'text' : 'password'}
+                value={pluggyIdInput}
+                onChange={setPluggyIdInput}
+                placeholder="Inserir novo Client ID"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPluggyId(!showPluggyId)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '32px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--cor-texto-fraco)',
+                  cursor: 'pointer'
+                }}
+              >
+                {showPluggyId ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="PLUGGY_CLIENT_SECRET"
+                type={showPluggySecret ? 'text' : 'password'}
+                value={pluggySecretInput}
+                onChange={setPluggySecretInput}
+                placeholder="Inserir novo Client Secret"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPluggySecret(!showPluggySecret)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '32px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--cor-texto-fraco)',
+                  cursor: 'pointer'
+                }}
+              >
+                {showPluggySecret ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <Botao
+                variante="primario"
+                style={{ width: 'auto', padding: '10px 16px' }}
+                onClick={async () => {
+                  if (pluggyIdInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'PLUGGY_CLIENT_ID', valor: pluggyIdInput })
+                  if (pluggySecretInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'PLUGGY_CLIENT_SECRET', valor: pluggySecretInput })
+                }}
+                carregando={atualizarIntegracaoMutation.isPending}
+              >
+                Salvar
+              </Botao>
+              <Botao
+                variante="secundario"
+                style={{ width: 'auto', padding: '10px 16px' }}
+                onClick={() => testarConexao('pluggy')}
+                disabled={statusTestes['pluggy']?.carregando}
+              >
+                {statusTestes['pluggy']?.carregando ? 'Testando...' : 'Testar Conexão'}
+              </Botao>
+            </div>
+          </div>
+          {statusTestes['pluggy']?.msg && (
+            <div style={{
+              marginTop: '10px',
+              fontSize: '0.8rem',
+              color: statusTestes['pluggy']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+              fontWeight: 'bold'
+            }}>
+              {statusTestes['pluggy']?.msg}
+            </div>
+          )}
+        </div>
+
+        <hr style={{ border: 0, borderTop: '1px solid var(--cor-borda)', margin: '24px 0' }} />
+
+        {/* Seção: Evolution API */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>💬 Evolution API (WhatsApp Bot)</h4>
+            <span style={{
+              fontSize: '0.75rem',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              background: statusIntegracoes?.evolutionApi.configurado ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+              color: statusIntegracoes?.evolutionApi.configurado ? 'var(--cor-sucesso)' : 'var(--cor-alerta)',
+              fontWeight: 'bold'
+            }}>
+              {statusIntegracoes?.evolutionApi.configurado ? 'Configurado' : 'Não configurado'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="EVOLUTION_API_URL"
+                type={showEvolutionUrl ? 'text' : 'password'}
+                value={evolutionUrlInput}
+                onChange={setEvolutionUrlInput}
+                placeholder="Ex: http://localhost:8080"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEvolutionUrl(!showEvolutionUrl)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '32px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--cor-texto-fraco)',
+                  cursor: 'pointer'
+                }}
+              >
+                {showEvolutionUrl ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="EVOLUTION_INSTANCE"
+                type={showEvolutionInst ? 'text' : 'password'}
+                value={evolutionInstInput}
+                onChange={setEvolutionInstInput}
+                placeholder="Ex: financas-casal"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEvolutionInst(!showEvolutionInst)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '32px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--cor-texto-fraco)',
+                  cursor: 'pointer'
+                }}
+              >
+                {showEvolutionInst ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Campo
+                label="EVOLUTION_API_KEY"
+                type={showEvolutionKey ? 'text' : 'password'}
+                value={evolutionKeyInput}
+                onChange={setEvolutionKeyInput}
+                placeholder="Inserir Evolution API Token"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEvolutionKey(!showEvolutionKey)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '32px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--cor-texto-fraco)',
+                  cursor: 'pointer'
+                }}
+              >
+                {showEvolutionKey ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <Botao
+                variante="primario"
+                style={{ width: 'auto', padding: '10px 16px' }}
+                onClick={async () => {
+                  if (evolutionUrlInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_URL', valor: evolutionUrlInput })
+                  if (evolutionInstInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_INSTANCE', valor: evolutionInstInput })
+                  if (evolutionKeyInput) await atualizarIntegracaoMutation.mutateAsync({ chave: 'EVOLUTION_API_KEY', valor: evolutionKeyInput })
+                }}
+                carregando={atualizarIntegracaoMutation.isPending}
+              >
+                Salvar
+              </Botao>
+              <Botao
+                variante="secundario"
+                style={{ width: 'auto', padding: '10px 16px' }}
+                onClick={() => testarConexao('evolution')}
+                disabled={statusTestes['evolution']?.carregando}
+              >
+                {statusTestes['evolution']?.carregando ? 'Testando...' : 'Testar Conexão'}
+              </Botao>
+            </div>
+          </div>
+          {statusTestes['evolution']?.msg && (
+            <div style={{
+              marginTop: '10px',
+              fontSize: '0.8rem',
+              color: statusTestes['evolution']?.sucesso ? 'var(--cor-sucesso)' : 'var(--cor-perigo)',
+              fontWeight: 'bold'
+            }}>
+              {statusTestes['evolution']?.msg}
+            </div>
+          )}
         </div>
       </Cartao>
 
