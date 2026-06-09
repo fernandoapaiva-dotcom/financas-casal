@@ -1,48 +1,45 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../services/db';
 import { autenticacaoMiddleware } from '../middlewares/autenticacao';
 
 export const router = Router();
-const prisma = new PrismaClient();
-
-// Aplica autenticação em todas as rotas do casal
-router.use(autenticacaoMiddleware);
 
 // GET /casal
-router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { casalId } = req.usuario!;
+    const casalId = req.usuario!.casalId;
 
-    const casal = await prisma.casal.findFirst({
+    const casal = await prisma.casal.findUnique({
       where: { id: casalId, deletadoEm: null },
       include: {
         membros: {
-          include: {
+          select: {
+            id: true,
+            papel: true,
             usuario: {
               select: {
                 id: true,
                 nome: true,
-                email: true
-              }
-            }
-          }
-        }
-      }
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!casal) {
-      res.status(404).json({
+      return res.status(404).json({
         dados: null,
         erro: true,
-        mensagem: 'Casal não encontrado'
+        mensagem: 'Casal não encontrado',
       });
-      return;
     }
 
-    res.json({
+    return res.status(200).json({
       dados: casal,
       erro: false,
-      mensagem: ''
+      mensagem: '',
     });
   } catch (error) {
     next(error);
@@ -50,24 +47,24 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
 });
 
 // PUT /casal
-router.put('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.put('/', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { casalId } = req.usuario!;
+    const casalId = req.usuario!.casalId;
     const { nome, orcamentoMensal } = req.body;
 
-    const dataToUpdate: any = {};
-    if (nome !== undefined) dataToUpdate.nome = nome;
-    if (orcamentoMensal !== undefined) dataToUpdate.orcamentoMensal = orcamentoMensal;
+    const dadosAtualizacao: any = {};
+    if (nome !== undefined) dadosAtualizacao.nome = nome;
+    if (orcamentoMensal !== undefined) dadosAtualizacao.orcamentoMensal = orcamentoMensal;
 
     const casalAtualizado = await prisma.casal.update({
       where: { id: casalId },
-      data: dataToUpdate
+      data: dadosAtualizacao,
     });
 
-    res.json({
+    return res.status(200).json({
       dados: casalAtualizado,
       erro: false,
-      mensagem: 'Casal atualizado com sucesso'
+      mensagem: 'Casal atualizado com sucesso',
     });
   } catch (error) {
     next(error);
@@ -75,105 +72,136 @@ router.put('/', async (req: Request, res: Response, next: NextFunction): Promise
 });
 
 // GET /casal/resumo
-router.get('/resumo', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/resumo', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { casalId } = req.usuario!;
+    const casalId = req.usuario!.casalId;
 
-    // 1. Obter o orçamento mensal do casal
-    const casal = await prisma.casal.findFirst({
-      where: { id: casalId },
-      select: { orcamentoMensal: true }
-    });
-
-    const orcamentoMensal = casal?.orcamentoMensal || 0;
-
-    // 2. Calcular saldoTotal: soma de saldoAtual de todas as Conta ativas do casal
-    const contasAtivas = await prisma.conta.findMany({
-      where: { casalId, ativa: true, deletadoEm: null },
-      select: { saldoAtual: true }
-    });
-
-    const saldoTotal = contasAtivas.reduce((acc, conta) => acc + conta.saldoAtual, 0);
-
-    // 3. Obter datas do mês atual (UTC)
+    // Obter data atual em UTC para calcular entradas/saídas do mês
     const agora = new Date();
     const ano = agora.getUTCFullYear();
-    const mes = agora.getUTCMonth(); // 0-indexed
+    const mes = agora.getUTCMonth();
+    const inicioMes = new Date(Date.UTC(ano, mes, 1, 0, 0, 0, 0));
+    const fimMes = new Date(Date.UTC(ano, mes + 1, 1, 0, 0, 0, 0));
 
-    const dataInicioMes = new Date(Date.UTC(ano, mes, 1, 0, 0, 0, 0));
-    const dataFimMes = new Date(Date.UTC(ano, mes + 1, 1, 0, 0, 0, 0)); // início do mês seguinte
+    // 1. saldoTotal: soma de saldoAtual de todas as contas ativas do casal
+    const contas = await prisma.conta.findMany({
+      where: {
+        casalId,
+        ativa: true,
+        deletadoEm: null,
+      },
+    });
+    const saldoTotal = contas.reduce((acc, c) => acc + c.saldoAtual, 0);
 
-    // 4. Calcular totalEntradas: soma de valor das Transacao do casal no mês onde tipo = "CREDITO"
-    const transacoesCredito = await prisma.transacao.findMany({
+    // 2. totalEntradas: soma de valor das Transacoes no mês com tipo = CREDITO
+    const agregadorEntradas = await prisma.transacao.aggregate({
+      _sum: {
+        valor: true,
+      },
       where: {
         casalId,
         tipo: 'CREDITO',
+        deletadoEm: null,
         data: {
-          gte: dataInicioMes,
-          lt: dataFimMes
+          gte: inicioMes,
+          lt: fimMes,
         },
-        deletadoEm: null
       },
-      select: { valor: true }
     });
+    const totalEntradas = agregadorEntradas._sum.valor || 0;
 
-    const totalEntradas = transacoesCredito.reduce((acc, t) => acc + t.valor, 0);
-
-    // 5. Calcular totalSaidas: soma absoluta de valor das Transacao do casal no mês onde tipo = "DEBITO"
-    const transacoesDebito = await prisma.transacao.findMany({
+    // 3. totalSaidas: soma absoluta de valor das Transacoes no mês com tipo = DEBITO
+    const agregadorSaidas = await prisma.transacao.aggregate({
+      _sum: {
+        valor: true,
+      },
       where: {
         casalId,
         tipo: 'DEBITO',
+        deletadoEm: null,
         data: {
-          gte: dataInicioMes,
-          lt: dataFimMes
+          gte: inicioMes,
+          lt: fimMes,
         },
-        deletadoEm: null
       },
-      select: { valor: true }
     });
+    const totalSaidas = Math.abs(agregadorSaidas._sum.valor || 0);
 
-    const totalSaidas = Math.abs(transacoesDebito.reduce((acc, t) => acc + t.valor, 0));
-
-    // 6. Calcular totalParcelasAbertas: soma dos valores das Transacao parceladas ainda não pagas (parcelaAtual < parcelasTotal)
-    // Nota: Como parcelaAtual e parcelasTotal são nullable, incluímos apenas registros onde ambos estão presentes.
-    const transacoesParceladasAbertas = await prisma.transacao.findMany({
+    // 4. totalParcelasAbertas: soma de valor das Transacao parceladas (parcelaAtual < parcelasTotal)
+    const transacoesParceladas = await prisma.transacao.findMany({
       where: {
         casalId,
         parcelada: true,
         deletadoEm: null,
-        parcelaAtual: {
-          not: null
-        },
-        parcelasTotal: {
-          not: null
-        }
-      }
+        AND: [
+          { parcelaAtual: { not: null } },
+          { parcelasTotal: { not: null } },
+        ],
+      },
     });
-
-    // Filtra transações onde parcelaAtual < parcelasTotal e soma o valor restante/atual
-    // Vamos somar os valores das parcelas que ainda não foram totalmente pagas (parcelaAtual < parcelasTotal)
-    const totalParcelasAbertas = transacoesParceladasAbertas
-      .filter(t => t.parcelaAtual! < t.parcelasTotal!)
+    const totalParcelasAbertas = transacoesParceladas
+      .filter((t) => t.parcelaAtual! < t.parcelasTotal!)
       .reduce((acc, t) => acc + t.valor, 0);
 
-    // 7. Calcular percentualUsado: (totalSaidas / orcamentoMensal * 100) arredondado, ou 0 se não tiver orçamento
-    const percentualUsado = orcamentoMensal > 0
-      ? Math.round((totalSaidas / orcamentoMensal) * 100)
-      : 0;
+    // 5. percentualUsado: totalSaidas / orcamentoMensal * 100
+    const casal = await prisma.casal.findUnique({
+      where: { id: casalId },
+    });
+    const orcamentoMensal = casal?.orcamentoMensal || 0;
+    const percentualUsado = orcamentoMensal > 0 ? Math.round((totalSaidas / orcamentoMensal) * 100) : 0;
 
-    res.json({
+    return res.status(200).json({
       dados: {
         saldoTotal,
         totalEntradas,
         totalSaidas,
         totalParcelasAbertas,
-        percentualUsado
+        percentualUsado,
       },
       erro: false,
-      mensagem: ''
+      mensagem: '',
     });
   } catch (error) {
     next(error);
   }
 });
+
+// PUT /casal/membro
+router.put('/membro', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const usuarioId = req.usuario!.id;
+    const { telefone } = req.body;
+
+    if (!telefone) {
+      return res.status(400).json({
+        dados: null,
+        erro: true,
+        mensagem: 'O campo telefone é obrigatório',
+      });
+    }
+
+    // Valida formato: apenas números, 10 ou 11 dígitos
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    if (telefoneLimpo.length !== 10 && telefoneLimpo.length !== 11) {
+      return res.status(400).json({
+        dados: null,
+        erro: true,
+        mensagem: 'O telefone deve possuir 10 ou 11 dígitos numéricos',
+      });
+    }
+
+    const usuarioAtualizado = await prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { telefone: telefoneLimpo },
+    });
+
+    return res.status(200).json({
+      dados: { telefone: usuarioAtualizado.telefone },
+      erro: false,
+      mensagem: 'Telefone atualizado com sucesso',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+

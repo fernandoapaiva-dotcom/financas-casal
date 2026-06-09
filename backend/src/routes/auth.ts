@@ -1,91 +1,90 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '../services/db';
 import { autenticacaoMiddleware } from '../middlewares/autenticacao';
 
 export const router = Router();
-const prisma = new PrismaClient();
 
-// Map de convites em memória: token -> { casalId, expiresAt }
-const convitesMap = new Map<string, { casalId: string; expiresAt: Date }>();
+// Map para armazenar os convites em memória: Map<token, { casalId: string, email: string, expiresAt: Date }>
+const convitesMap = new Map<string, { casalId: string; email: string; expiresAt: Date }>();
+
+// Auxiliar para gerar o token JWT
+function gerarToken(usuarioId: string, casalId: string, email: string): string {
+  const segredo = process.env.JWT_SECRET || 'segredo_trocar_em_producao';
+  return jwt.sign({ usuarioId, casalId, email }, segredo, { expiresIn: '30d' });
+}
 
 // POST /auth/registrar
-router.post('/registrar', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/registrar', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { nome, email, senha, telefone } = req.body;
 
     if (!nome || !email || !senha) {
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'Nome, email e senha são obrigatórios'
+        mensagem: 'Nome, email e senha são obrigatórios',
       });
-      return;
     }
 
+    // Verificar se o email já existe
     const usuarioExistente = await prisma.usuario.findFirst({
-      where: { email, deletadoEm: null }
+      where: { email, deletadoEm: null },
     });
 
     if (usuarioExistente) {
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'E-mail já cadastrado'
+        mensagem: 'Este email já está cadastrado',
       });
-      return;
     }
 
     const senhaHash = await bcrypt.hash(senha, 12);
 
-    // Transação para criar o usuário, casal e membro casal associado
+    // Criar tudo em transação para consistência
     const resultado = await prisma.$transaction(async (tx) => {
       const usuario = await tx.usuario.create({
         data: {
           nome,
           email,
           senhaHash,
-          telefone
-        }
+          telefone,
+        },
       });
 
       const casal = await tx.casal.create({
         data: {
-          nome: `Casal de ${nome}`
-        }
+          nome: `Casal de ${nome}`,
+        },
       });
 
       await tx.membroCasal.create({
         data: {
           casalId: casal.id,
           usuarioId: usuario.id,
-          papel: 'ADMIN'
-        }
+          papel: 'ADMIN',
+        },
       });
 
       return { usuario, casal };
     });
 
-    const JWT_SECRET = process.env.JWT_SECRET || 'segredo_trocar_em_producao';
-    const token = jwt.sign(
-      { usuarioId: resultado.usuario.id, casalId: resultado.casal.id, email: resultado.usuario.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    const token = gerarToken(resultado.usuario.id, resultado.casal.id, resultado.usuario.email);
 
-    res.status(201).json({
+    return res.status(201).json({
       dados: {
         token,
         usuario: {
           id: resultado.usuario.id,
           nome: resultado.usuario.nome,
-          email: resultado.usuario.email
-        }
+          email: resultado.usuario.email,
+        },
       },
       erro: false,
-      mensagem: 'Cadastro realizado'
+      mensagem: 'Cadastro realizado',
     });
   } catch (error) {
     next(error);
@@ -93,97 +92,94 @@ router.post('/registrar', async (req: Request, res: Response, next: NextFunction
 });
 
 // POST /auth/login
-router.post('/login', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, senha } = req.body;
 
     if (!email || !senha) {
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'Email e senha são obrigatórios'
+        mensagem: 'Email e senha são obrigatórios',
       });
-      return;
     }
 
     const usuario = await prisma.usuario.findFirst({
-      where: { email, deletadoEm: null }
+      where: { email, deletadoEm: null },
     });
 
     if (!usuario) {
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'E-mail ou senha incorretos'
+        mensagem: 'Credenciais inválidas',
       });
-      return;
     }
 
     const senhaValida = await bcrypt.compare(senha, usuario.senhaHash);
     if (!senhaValida) {
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'E-mail ou senha incorretos'
+        mensagem: 'Credenciais inválidas',
       });
-      return;
     }
 
-    const membroCasal = await prisma.membroCasal.findFirst({
-      where: { usuarioId: usuario.id }
+    const membro = await prisma.membroCasal.findFirst({
+      where: { usuarioId: usuario.id },
     });
 
-    if (!membroCasal) {
-      res.status(400).json({
+    if (!membro) {
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'Usuário não associado a um casal'
+        mensagem: 'Usuário não está associado a nenhum casal',
       });
-      return;
     }
 
-    const JWT_SECRET = process.env.JWT_SECRET || 'segredo_trocar_em_producao';
-    const token = jwt.sign(
-      { usuarioId: usuario.id, casalId: membroCasal.casalId, email: usuario.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    const token = gerarToken(usuario.id, membro.casalId, usuario.email);
 
-    res.json({
+    return res.status(200).json({
       dados: {
         token,
         usuario: {
           id: usuario.id,
           nome: usuario.nome,
-          email: usuario.email
-        }
+          email: usuario.email,
+        },
       },
       erro: false,
-      mensagem: 'Login realizado'
+      mensagem: 'Login realizado',
     });
   } catch (error) {
     next(error);
   }
 });
 
-// POST /auth/convidar
-router.post('/convidar', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// POST /auth/convidar (requer autenticacao)
+router.post('/convidar', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const usuarioLogado = req.usuario!;
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        dados: null,
+        erro: true,
+        mensagem: 'Email é obrigatório',
+      });
+    }
+
+    const casalId = req.usuario!.casalId;
     const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // agora + 48 horas
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas a partir de agora
 
-    convitesMap.set(token, {
-      casalId: usuarioLogado.casalId,
-      expiresAt
-    });
+    convitesMap.set(token, { casalId, email, expiresAt });
 
-    res.json({
+    return res.status(200).json({
       dados: {
-        link: `/convite/${token}`
+        link: `/convite/${token}`,
       },
       erro: false,
-      mensagem: 'Convite gerado'
+      mensagem: 'Convite gerado',
     });
   } catch (error) {
     next(error);
@@ -191,96 +187,81 @@ router.post('/convidar', autenticacaoMiddleware, async (req: Request, res: Respo
 });
 
 // POST /auth/aceitar-convite
-router.post('/aceitar-convite', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/aceitar-convite', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { token, nome, senha, email } = req.body;
+    const { token, nome, senha } = req.body;
 
-    if (!token || !nome || !senha || !email) {
-      res.status(400).json({
+    if (!token || !nome || !senha) {
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'Token, nome, email e senha são obrigatórios'
+        mensagem: 'Token, nome e senha são obrigatórios',
       });
-      return;
     }
 
     const convite = convitesMap.get(token);
 
     if (!convite) {
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'Convite inválido'
+        mensagem: 'Convite inválido ou expirado',
       });
-      return;
     }
 
     if (new Date() > convite.expiresAt) {
       convitesMap.delete(token);
-      res.status(400).json({
+      return res.status(400).json({
         dados: null,
         erro: true,
-        mensagem: 'Convite expirado'
+        mensagem: 'Convite expirado',
       });
-      return;
-    }
-
-    // Verificar se o e-mail já existe
-    const usuarioExistente = await prisma.usuario.findFirst({
-      where: { email, deletadoEm: null }
-    });
-
-    if (usuarioExistente) {
-      res.status(400).json({
-        dados: null,
-        erro: true,
-        mensagem: 'E-mail já cadastrado'
-      });
-      return;
     }
 
     const senhaHash = await bcrypt.hash(senha, 12);
 
     const resultado = await prisma.$transaction(async (tx) => {
+      const conviteInfo = convitesMap.get(token);
+      if (!conviteInfo) {
+        throw new Error('Convite inválido');
+      }
+
+      const emailConvidado = conviteInfo.email;
+
       const usuario = await tx.usuario.create({
         data: {
           nome,
-          email,
-          senhaHash
-        }
+          email: emailConvidado,
+          senhaHash,
+        },
       });
 
       await tx.membroCasal.create({
         data: {
-          casalId: convite.casalId,
+          casalId: conviteInfo.casalId,
           usuarioId: usuario.id,
-          papel: 'MEMBRO'
-        }
+          papel: 'MEMBRO',
+        },
       });
 
-      return usuario;
+      return { usuario, casalId: conviteInfo.casalId };
     });
 
     convitesMap.delete(token);
 
-    const JWT_SECRET = process.env.JWT_SECRET || 'segredo_trocar_em_producao';
-    const tokenJWT = jwt.sign(
-      { usuarioId: resultado.id, casalId: convite.casalId, email: resultado.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    const jwtToken = gerarToken(resultado.usuario.id, resultado.casalId, resultado.usuario.email);
 
-    res.status(201).json({
+    return res.status(200).json({
       dados: {
-        token: tokenJWT,
+        token: jwtToken,
         usuario: {
-          id: resultado.id,
-          nome: resultado.nome,
-          email: resultado.email
-        }
+          id: resultado.usuario.id,
+          nome: resultado.usuario.nome,
+          email: resultado.usuario.email,
+        },
       },
       erro: false,
-      mensagem: 'Cadastro realizado'
+      mensagem: 'Cadastro realizado',
     });
   } catch (error) {
     next(error);

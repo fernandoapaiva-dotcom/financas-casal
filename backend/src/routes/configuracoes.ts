@@ -3,6 +3,7 @@ import { autenticacaoMiddleware } from '../middlewares/autenticacao';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import { chamarIA } from '../services/iaService';
 
 export const router = Router();
 
@@ -12,7 +13,10 @@ const CHAVES_PERMITIDAS = [
   'PLUGGY_CLIENT_SECRET',
   'EVOLUTION_API_URL',
   'EVOLUTION_INSTANCE',
-  'EVOLUTION_API_KEY'
+  'EVOLUTION_API_KEY',
+  'IA_PROVEDOR',
+  'GEMINI_API_KEY',
+  'OPENAI_API_KEY'
 ];
 
 const ENV_PATH = path.resolve(__dirname, '../../.env');
@@ -70,6 +74,12 @@ router.get('/integracoes', autenticacaoMiddleware, (req: Request, res: Response)
         },
         evolutionApi: {
           configurado: !!(evolutionUrl && evolutionInst && evolutionKey)
+        },
+        iaConfig: {
+          provedor: process.env.IA_PROVEDOR || 'gemini',
+          gemini: { configurado: !!process.env.GEMINI_API_KEY, preview: previewKey(process.env.GEMINI_API_KEY || '') },
+          claude: { configurado: !!process.env.CLAUDE_API_KEY, preview: previewKey(process.env.CLAUDE_API_KEY || '') },
+          openai: { configurado: !!process.env.OPENAI_API_KEY, preview: previewKey(process.env.OPENAI_API_KEY || '') }
         }
       },
       erro: false,
@@ -123,6 +133,47 @@ router.post('/integracoes/testar', autenticacaoMiddleware, async (req: Request, 
   const { integracao } = req.body;
 
   try {
+    if (integracao === 'gemini') {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        res.json({ dados: { sucesso: false, message: 'Chave do Gemini não configurada' }, erro: false });
+        return;
+      }
+
+      // Backup do provedor atual para teste forçado do gemini
+      const backupProvedor = process.env.IA_PROVEDOR;
+      process.env.IA_PROVEDOR = 'gemini';
+      const result = await chamarIA('Responda apenas: ok');
+      process.env.IA_PROVEDOR = backupProvedor;
+
+      if (result && result.toLowerCase().includes('ok')) {
+        res.json({ dados: { sucesso: true, mensagem: 'Gemini respondendo com sucesso!' }, erro: false });
+      } else {
+        res.json({ dados: { sucesso: false, mensagem: 'Resposta inesperada ou vazia do Gemini' }, erro: false });
+      }
+      return;
+    }
+
+    if (integracao === 'openai') {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        res.json({ dados: { sucesso: false, mensagem: 'Chave da OpenAI não configurada' }, erro: false });
+        return;
+      }
+
+      const backupProvedor = process.env.IA_PROVEDOR;
+      process.env.IA_PROVEDOR = 'openai';
+      const result = await chamarIA('Responda apenas: ok');
+      process.env.IA_PROVEDOR = backupProvedor;
+
+      if (result && result.toLowerCase().includes('ok')) {
+        res.json({ dados: { sucesso: true, mensagem: 'OpenAI respondendo com sucesso!' }, erro: false });
+      } else {
+        res.json({ dados: { sucesso: false, mensagem: 'Resposta inesperada ou vazia da OpenAI' }, erro: false });
+      }
+      return;
+    }
+
     if (integracao === 'claude') {
       const apiKey = process.env.CLAUDE_API_KEY;
       if (!apiKey) {
@@ -130,30 +181,15 @@ router.post('/integracoes/testar', autenticacaoMiddleware, async (req: Request, 
         return;
       }
 
-      try {
-        const response = await axios.post(
-          'https://api.anthropic.com/v1/messages',
-          {
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 10,
-            messages: [{ role: 'user', content: 'Ping' }]
-          },
-          {
-            headers: {
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json'
-            }
-          }
-        );
-        if (response.data && response.data.content) {
-          res.json({ dados: { sucesso: true, mensagem: 'Conexão com Claude API realizada com sucesso!' }, erro: false });
-        } else {
-          res.json({ dados: { sucesso: false, mensagem: 'Resposta inesperada da Claude API' }, erro: false });
-        }
-      } catch (err: any) {
-        const errMsg = err.response?.data?.error?.message || err.message;
-        res.json({ dados: { sucesso: false, mensagem: `Erro Claude API: ${errMsg}` }, erro: false });
+      const backupProvedor = process.env.IA_PROVEDOR;
+      process.env.IA_PROVEDOR = 'claude';
+      const result = await chamarIA('Responda apenas: ok');
+      process.env.IA_PROVEDOR = backupProvedor;
+
+      if (result && result.toLowerCase().includes('ok')) {
+        res.json({ dados: { sucesso: true, mensagem: 'Claude respondendo com sucesso!' }, erro: false });
+      } else {
+        res.json({ dados: { sucesso: false, mensagem: 'Resposta inesperada ou vazia do Claude' }, erro: false });
       }
       return;
     }
@@ -167,7 +203,6 @@ router.post('/integracoes/testar', autenticacaoMiddleware, async (req: Request, 
       }
 
       try {
-        // Tenta gerar connect token/auth token na Pluggy
         const response = await axios.post('https://api.pluggy.ai/auth', {
           clientId,
           clientSecret
@@ -195,7 +230,6 @@ router.post('/integracoes/testar', autenticacaoMiddleware, async (req: Request, 
       }
 
       try {
-        // Verifica status da instância
         const cleanUrl = apiUrl.replace(/\/$/, '');
         const response = await axios.get(`${cleanUrl}/instance/connectionState/${instance}`, {
           headers: { apikey: apiKey }
