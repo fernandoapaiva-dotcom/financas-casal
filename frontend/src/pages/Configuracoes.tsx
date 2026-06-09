@@ -80,6 +80,15 @@ export default function Configuracoes() {
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
   const [statusMotorIA, setStatusMotorIA] = useState<{ carregando: boolean; sucesso?: boolean; msg?: string }>({ carregando: false })
 
+  // Buscar dados atualizados do usuário logado (inclui telefone)
+  const { data: usuarioAtual, isLoading: carregandoUsuario } = useQuery<{ id: string; nome: string; email: string; telefone: string | null }>({
+    queryKey: ['auth-me'],
+    queryFn: async () => {
+      const res = await api.get('/auth/me')
+      return res.data.dados
+    },
+  })
+
   // Buscar status das integrações
   const { data: statusIntegracoes, isLoading: carregandoIntegracoes, refetch: refetchIntegracoes } = useQuery<IntegracoesInfo>({
     queryKey: ['integracoes-status'],
@@ -106,12 +115,14 @@ export default function Configuracoes() {
     }
   }, [casal])
 
-  // Sincroniza telefone local com o da authStore
+  // Sincroniza telefone local com dados buscados do banco via GET /auth/me
   useEffect(() => {
-    if (usuario) {
-      setTelefone(usuario.telefone || '')
+    if (usuarioAtual) {
+      setTelefone(usuarioAtual.telefone || '')
+      // Atualiza o store para que outros componentes também tenham o telefone
+      setTelefoneStore(usuarioAtual.telefone ?? null)
     }
-  }, [usuario])
+  }, [usuarioAtual])
 
   // Sincroniza provedorIA com o valor da API
   useEffect(() => {
@@ -141,6 +152,7 @@ export default function Configuracoes() {
     onSuccess: (data) => {
       const telAtualizado = data.dados.telefone
       setTelefoneStore(telAtualizado)
+      queryClient.invalidateQueries({ queryKey: ['auth-me'] })
       setMsgTelefone('✅ Número cadastrado')
       setTimeout(() => setMsgTelefone(''), 3000)
     },
@@ -228,7 +240,7 @@ export default function Configuracoes() {
     })
   }
 
-  if (isLoading || carregandoAlertas || carregandoIntegracoes) {
+  if (isLoading || carregandoAlertas || carregandoIntegracoes || carregandoUsuario) {
     return <Carregando />
   }
 

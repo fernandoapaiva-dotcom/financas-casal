@@ -186,6 +186,32 @@ router.post('/convidar', autenticacaoMiddleware, async (req: Request, res: Respo
   }
 });
 
+// GET /auth/me (requer autenticacao)
+router.get('/me', autenticacaoMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const usuario = await prisma.usuario.findFirst({
+      where: { id: req.usuario!.id, deletadoEm: null },
+      select: { id: true, nome: true, email: true, telefone: true },
+    });
+
+    if (!usuario) {
+      return res.status(404).json({
+        dados: null,
+        erro: true,
+        mensagem: 'Usuário não encontrado',
+      });
+    }
+
+    return res.json({
+      dados: { id: usuario.id, nome: usuario.nome, email: usuario.email, telefone: usuario.telefone },
+      erro: false,
+      mensagem: '',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /auth/aceitar-convite
 router.post('/aceitar-convite', async (req: Request, res: Response, next: NextFunction) => {
   try {
